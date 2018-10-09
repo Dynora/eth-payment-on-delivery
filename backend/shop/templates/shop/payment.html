@@ -1,0 +1,102 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+
+{% if order %}
+
+Logged in as: {{ user.username }}
+
+<a href="{% url 'logout' %}">Logout</a>
+
+
+    <h1>Payment for order #{{ order.id }}</h1>
+
+ {%  if order.paid %}
+     Order already paid
+ {%  else  %}
+
+    Total amount due: &#926; {{ order.total_amount  }}
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
+<script src="{% static 'shop/js/truffle-contract.js' %}"></script>
+<script>
+
+    class PaymentOnDeliveryService {
+
+        async getAccount() {
+
+            return new Promise( function(resolve, reject) {
+               window.web3.eth.getAccounts(function(error, accounts) {
+                    if (error) {
+                        return reject(error);
+                    } else {
+                        return resolve(accounts[0]);
+                    }
+                });
+            });
+        }
+
+        async getContract() {
+            let data = await $.getJSON('{% static 'contracts/PaymentOnDelivery.json' %}');
+            let contract = TruffleContract(data);
+            contract.setProvider(window.web3.currentProvider);
+            return await contract.deployed();
+        }
+
+        async getCustomerDeliveries() {
+
+            let contract = await this.getContract();
+            let account = await this.getAccount();
+
+            return await contract.getCustomerDeliveries(account);
+        }
+
+        async createPayment(merchant, amount) {
+            let contract = await this.getContract();
+            let account = await this.getAccount();
+
+            if (account != '{{ user.username }}') {
+                alert('Account of Metamask does not match logged in user "{{ user.username }}"');
+            } else {
+
+                let result = await contract.createDelivery(merchant, 3600, {
+                    from: account,
+                    value: window.web3.toWei(amount)
+
+                });
+
+                let deliveryId = result.logs[0].args.deliveryId;
+                console.log('result', result);
+                console.log(deliveryId);
+
+                //Post result to merchants backend
+                let response = await $.post('{% url 'process_payment' %}', {'delivery_id': deliveryId, 'order_id': {{ order.id }}});
+                console.log('API', response);
+            }
+
+        }
+    }
+
+
+
+
+    let contract = new PaymentOnDeliveryService();
+    contract.createPayment('0x81fdd97d73261e6e40cbc248200cca850fb571f6', {{ order.total_amount }}).then(function(result) {
+
+        console.log('async', result);
+    });
+
+</script>
+{% endif %}
+{% else %}
+
+    Order not found
+
+{% endif %}
+</body>
+</html>

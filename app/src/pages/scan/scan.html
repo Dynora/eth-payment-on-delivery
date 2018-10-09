@@ -1,0 +1,16 @@
+<ion-header>
+  <ion-navbar>
+    <ion-title>
+      Release code
+    </ion-title>
+  </ion-navbar>
+</ion-header>
+
+<ion-content padding>
+  <div padding *ngIf="!scanning">
+    <button ion-button color="primary" block (click)="scanReleaseCode()">Scan release code</button>
+  </div>
+  <div padding *ngIf="scanning">
+    <button ion-button color="primary" block (click)="stopScanning()">Stop scanning</button>
+  </div>
+</ion-content>

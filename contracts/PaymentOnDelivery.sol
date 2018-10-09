@@ -1,12 +1,17 @@
 pragma solidity ^0.4.18;
 
-contract PaymentOnDelivery {
+import "./Ownable.sol";
+
+contract PaymentOnDelivery is Ownable {
 
     struct Delivery {
         address customer;
         address merchant;
         uint deposit;
+        uint created;
         uint timeout;
+        uint refunded;
+        uint delivered;
         bool active;
     }
 
@@ -14,7 +19,15 @@ contract PaymentOnDelivery {
     mapping (address => bytes32[]) merchant_delivery_ids;
     mapping (address => bytes32[]) customer_delivery_ids;
 
+    uint public delivery_fee = 0.01 ether;
+
     event DeliveryCreated(address merchant, bytes32 deliveryId);
+    event DeliveryRefunded(bytes32 deliveryId);
+    event DeliveryDelivered(bytes32 deliveryId);
+
+    function setDeliveryFee(uint fee) onlyOwner {
+        delivery_fee = fee;
+    }
 
     function createDelivery(address merchant, uint duration) public payable returns (bytes32) {
         if (msg.value == 0) { revert(); }
@@ -24,7 +37,7 @@ contract PaymentOnDelivery {
         // TODO if (duration < 3600) { revert(); }
 
         // Generate channel id
-        uint delivery_timeout = now + duration;
+        uint delivery_timeout = block.timestamp + duration;
 
         bytes32 delivery_id = keccak256(msg.sender, merchant, block.timestamp);
 
@@ -33,6 +46,7 @@ contract PaymentOnDelivery {
         channel.customer = msg.sender;
         channel.merchant = merchant;
         channel.deposit = msg.value;
+        channel.created = block.timestamp;
         channel.timeout = delivery_timeout;
         channel.active = true;
 
@@ -40,44 +54,35 @@ contract PaymentOnDelivery {
         customer_delivery_ids[msg.sender].push(delivery_id);
         merchant_delivery_ids[merchant].push(delivery_id);
 
-        DeliveryCreated(merchant, delivery_id);
+        emit DeliveryCreated(merchant, delivery_id);
 
     }
 
-    function settleDelivery(bytes32 delivery_id, uint value, bytes signature) public {
+    function settleDelivery(bytes32 delivery_id, bytes signature) public {
         Delivery memory _channel = deliveries[delivery_id];
 
         // Check if delivery is still active
         if (!_channel.active) { revert(); }
         // Check if channel is not already timed out
-        if (now > _channel.timeout) { revert(); }
-        // Only merchant is allowed to settle channel
-        if (msg.sender != _channel.merchant) { revert(); }
-        // Value cannot be higher than deposit
-        if (value > _channel.deposit) { revert(); }
+        if (block.timestamp > _channel.timeout) { revert(); }
 
-        if (value == 0) { value = _channel.deposit; }
+        uint value = _channel.deposit;
 
         // Check if signature matches customer address
         if (_channel.customer != getApprovedAmountAddress(delivery_id, value, signature)) { revert(); }
 
         if (_channel.deposit > 0 && value > 0) {
-            // Send agreed amount to merchant
-            _channel.merchant.transfer(value);
-            // TODO send fee to transporter
+            // Send agreed amount minus fee to merchant
+            _channel.merchant.transfer(value - delivery_fee);
 
-            if (_channel.deposit - value > 0) {
+            // Send fee to transporter
+            msg.sender.transfer(delivery_fee);
 
-                // Send remainder to customer
-                _channel.customer.transfer(_channel.deposit - value);
-            }
-
-//            // Delete channel
+            // Update delivery
             deliveries[delivery_id].active = false;
-//            delete deliveries[delivery_id];
-//            delete active_delivery_ids[_channel.customer][_channel.merchant];
-//            delete customer_delivery_ids[_channel.customer][_channel.merchant];
-//            delete merchant_delivery_ids[_channel.customer][_channel.merchant];
+            deliveries[delivery_id].delivered = block.timestamp;
+
+            emit DeliveryDelivered(delivery_id);
         }
     }
 
@@ -87,14 +92,15 @@ contract PaymentOnDelivery {
     function timeoutDelivery(bytes32 delivery_id) public {
         Delivery memory _channel = deliveries[delivery_id];
 
-        if (now > _channel.timeout && _channel.active == true) {
+        if (block.timestamp > _channel.timeout && _channel.active == true) {
             //Refund payer
             _channel.customer.transfer(_channel.deposit);
 
-            // Delete channel
+            // Update delivery
             deliveries[delivery_id].active = false;
-//            delete deliveries[delivery_id];
-//            delete active_delivery_ids[_channel.customer][_channel.merchant];
+            deliveries[delivery_id].refunded = block.timestamp;
+
+            emit DeliveryRefunded(delivery_id);
         }
     }
 
@@ -102,8 +108,20 @@ contract PaymentOnDelivery {
         return deliveries[id].deposit;
     }
 
+    function getDeliveryCreated(bytes32 id) public constant returns (uint) {
+        return deliveries[id].created;
+    }
+
     function getDeliveryTimeout(bytes32 id) public constant returns (uint) {
         return deliveries[id].timeout;
+    }
+
+    function getDeliveryDelivered(bytes32 id) public constant returns (uint) {
+        return deliveries[id].delivered;
+    }
+
+    function getDeliveryRefunded(bytes32 id) public constant returns (uint) {
+        return deliveries[id].refunded;
     }
 
     function getDeliveryCustomer(bytes32 id) public constant returns (address) {
