@@ -1,10 +1,9 @@
+from django.conf import settings
 from django.contrib import auth
 from django.shortcuts import render, redirect
 
-# Create your views here.
 from django.urls import reverse
 from django.views.generic import TemplateView, FormView
-from web3auth.views import login_api as web3_login_api
 
 from shop.forms import OrderForm
 from shop.models import Order
@@ -13,7 +12,6 @@ from shop.models import Order
 class HomeView(FormView):
     template_name = "shop/home.html"
     form_class = OrderForm
-    #success_url = "/order/payment/"
 
     def form_valid(self, form):
 
@@ -39,4 +37,5 @@ class PaymentView(TemplateView):
     def get_context_data(self, **kwargs):
         context = super(PaymentView, self).get_context_data(**kwargs)
         context['order'] = Order.objects.get(id=kwargs['order_id'], user=self.request.user)
+        context['timeout'] = settings.ETH_MERCHANT_MINIMUM_DELIVERY_TIME
         return context

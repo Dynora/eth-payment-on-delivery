@@ -6,9 +6,9 @@ admin.site.register(Product)
 
 
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ('created', 'user', 'total_amount', 'paid', 'shipped')
+    list_display = ('created', 'user', 'total_amount', 'paid', 'shipped', 'delivered')
     list_display_links = ('created',)
-    list_filter = ('paid', 'shipped',)
+    list_filter = ('paid', 'shipped', 'delivered')
     ordering = ('-created',)
 
 

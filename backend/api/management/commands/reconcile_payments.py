@@ -40,8 +40,7 @@ class Command(BaseCommand):
 
             delivery.save()
 
-
-            # TODO if active and not used in order try to reconcile on same customer and deposit
+            # active and not used in order try to reconcile on same customer and deposit
             if delivery.active:
 
                 # Check if payment is already used

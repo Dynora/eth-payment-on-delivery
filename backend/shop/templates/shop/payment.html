@@ -64,7 +64,7 @@ Logged in as: {{ user.username }}
                 alert('Account of Metamask does not match logged in user "{{ user.username }}"');
             } else {
 
-                let result = await contract.createDelivery(merchant, 3600, {
+                let result = await contract.createDelivery(merchant, {{ timeout }}, {
                     from: account,
                     value: window.web3.toWei(amount)
 
@@ -77,6 +77,7 @@ Logged in as: {{ user.username }}
                 //Post result to merchants backend
                 let response = await $.post('{% url 'process_payment' %}', {'delivery_id': deliveryId, 'order_id': {{ order.id }}});
                 console.log('API', response);
+                alert(response.message);
             }
 
         }
