@@ -36,6 +36,7 @@ class PaymentView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super(PaymentView, self).get_context_data(**kwargs)
-        context['order'] = Order.objects.get(id=kwargs['order_id'], user=self.request.user)
-        context['timeout'] = settings.ETH_MERCHANT_MINIMUM_DELIVERY_TIME
+        if self.request.user.is_authenticated:
+            context['order'] = Order.objects.get(id=kwargs['order_id'], user=self.request.user)
+        context['timeout'] = settings.ETH_MERCHANT_MINIMUM_DELIVERY_TIME * 2
         return context

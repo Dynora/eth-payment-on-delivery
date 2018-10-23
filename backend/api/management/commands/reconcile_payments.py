@@ -25,42 +25,39 @@ class Command(BaseCommand):
 
             delivery, created = Delivery.objects.get_or_create(delivery_id=web3.toHex(payment_id))
 
-            if created:
-                delivery.customer_address = contract.functions.getDeliveryCustomer(payment_id).call()
-                delivery.merchant_address = contract.functions.getDeliveryMerchant(payment_id).call()
-                delivery.deposit = web3.fromWei(contract.functions.getDeliveryDeposit(payment_id).call(), 'ether')
-                delivery.created = datetime.fromtimestamp(contract.functions.getDeliveryCreated(payment_id).call(),
-                                                          tz=pytz.utc)
-                delivery.timeout = datetime.fromtimestamp(contract.functions.getDeliveryTimeout(payment_id).call(),
-                                                          tz=pytz.utc)
+            delivery.save(contract=contract)
 
-            delivery.refunded = datetime.fromtimestamp(contract.functions.getDeliveryRefunded(payment_id).call(), tz=pytz.utc)
-            delivery.delivered = datetime.fromtimestamp(contract.functions.getDeliveryDelivered(payment_id).call(), tz=pytz.utc)
-            delivery.active = contract.functions.getDeliveryActive(payment_id).call()
+            # Check if payment is already used
+            used_count = Order.objects.filter(payment=delivery).count()
 
-            delivery.save()
+            if used_count == 1:
+                order = Order.objects.get(payment=delivery)
+                order.delivered = bool(delivery.delivered)
+                order.refunded = bool(delivery.refunded)
+                order.save()
+
+                self.stdout.write(self.style.SUCCESS('> Updated order #{}'.format(order.id)))
 
             # active and not used in order try to reconcile on same customer and deposit
-            if delivery.active:
+            elif used_count == 0 and delivery.active:
 
-                # Check if payment is already used
-                used_count = Order.objects.filter(payment=delivery).count()
+                orders = Order.objects.filter(
+                    user__username__iexact=delivery.customer_address,
+                    paid=False,
+                    payment__isnull=True,
+                    total_amount=delivery.deposit
+                ).order_by('created')
 
-                if used_count == 0:
+                if len(orders) > 0:
+                    # Link to oldest order
+                    orders[0].payment = delivery
 
-                    orders = Order.objects.filter(
-                        user__username__iexact=delivery.customer_address,
-                        paid=False,
-                        payment__isnull=True,
-                        total_amount=delivery.deposit
-                    ).order_by('created')
+                    # Check if timeout meets criteria
+                    orders[0].paid = (delivery.timeout - delivery.created).total_seconds() >= settings.ETH_MERCHANT_MINIMUM_DELIVERY_TIME
+                    orders[0].save()
 
-                    if len(orders) > 0:
-                        # Link to oldest order
-                        orders[0].payment = delivery
-                        orders[0].paid = True
-                        orders[0].save()
-
-                        self.stdout.write(self.style.SUCCESS('Linked to order #{}'.format(orders[0].id)))
+                    self.stdout.write(self.style.SUCCESS('> Linked to order #{}'.format(orders[0].id)))
+            else:
+                self.stdout.write(self.style.ERROR('> Could not link payment {}'.format(delivery.delivery_id)))
 
         self.stdout.write(self.style.SUCCESS('Successfully updated payments'))

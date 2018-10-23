@@ -79,21 +79,6 @@ class ProcessPaymentView(View):
 
         delivery, created = Delivery.objects.get_or_create(delivery_id=payment_id)
 
-        if created:
-            delivery.customer_address = contract.functions.getDeliveryCustomer(payment_id).call()
-            delivery.merchant_address = contract.functions.getDeliveryMerchant(payment_id).call()
-            delivery.deposit = web3.fromWei(contract.functions.getDeliveryDeposit(payment_id).call(), 'ether')
-            delivery.created = datetime.fromtimestamp(contract.functions.getDeliveryCreated(payment_id).call(),
-                                                      tz=pytz.utc)
-            delivery.timeout = datetime.fromtimestamp(contract.functions.getDeliveryTimeout(payment_id).call(),
-                                                      tz=pytz.utc)
-
-        delivery.refunded = datetime.fromtimestamp(contract.functions.getDeliveryRefunded(payment_id).call(),
-                                                   tz=pytz.utc)
-        delivery.delivered = datetime.fromtimestamp(contract.functions.getDeliveryDelivered(payment_id).call(),
-                                                    tz=pytz.utc)
-        delivery.active = contract.functions.getDeliveryActive(payment_id).call()
-
         delivery.save()
 
         try:
@@ -115,7 +100,14 @@ class ProcessPaymentView(View):
             return JsonResponse({'success': False, 'message': 'Deposit does not match order total amount'})
 
         order.payment = delivery
-        order.paid = True
+
+        if (delivery.timeout - delivery.created).total_seconds() >= settings.ETH_MERCHANT_MINIMUM_DELIVERY_TIME:
+            order.paid = True
+            message = 'Payment successfuly linked to order'
+        else:
+            order.paid = False
+            message = 'Timeout doesn\'t meet merchant requirement'
+
         order.save()
 
-        return JsonResponse({'success': True, 'message': 'Payment successfuly linked to order'})
+        return JsonResponse({'success': order.paid, 'message': message})

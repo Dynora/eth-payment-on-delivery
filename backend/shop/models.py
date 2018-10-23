@@ -23,6 +23,7 @@ class Order(models.Model):
     paid = models.BooleanField(default=False)
     shipped = models.BooleanField(default=False)
     delivered = models.BooleanField(default=False)
+    refunded = models.BooleanField(default=False)
 
     def __str__(self):
         return '{} - {} - {}'.format(self.created, self.user, self.product)
