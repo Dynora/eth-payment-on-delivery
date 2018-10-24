@@ -1,27 +1,32 @@
-# Battlecomic
+# Ethereum Payment on Delivery
 
-This project was generated with [Angular CLI](https://github.com/angular/angular-cli) version 1.7.0.
+Still work in progress, but to set up the project:
 
-## Development server
+## Truffle
 
-Run `ng serve` for a dev server. Navigate to `http://localhost:4200/`. The app will automatically reload if you change any of the source files.
+- Install Truffle: `npm install -g truffle`
+- In de `./truffle` folder install dependencies: `npm install`
+- Compile the smart contract: `truffle compile`
+- Enter a BIP39 mnemonic (for example the one you will create with MetaMask later) in `truffle/truffle.js`
+- Deploy the smart contract to the network of your choice: `truffle migrate --network rinkeby`
 
-## Code scaffolding
 
-Run `ng generate component component-name` to generate a new component. You can also use `ng generate directive|pipe|service|class|guard|interface|enum|module`.
+## Ionic App
 
-## Build
+- Install requirements by running `npm install` in de `app` folder.
+- Create a `local-mnemonic.json` file with a BIP39 mnemonic e.g.: `{"mnemonic": "candy maple cake sugar pudding cream honey rich smooth crumble sweet treat"}`
+- Run `ionic serve` in de `app` folder. Navigate to `http://localhost:8100/`. The app will automatically reload if you change any of the source files.
 
-Run `ng build` to build the project. The build artifacts will be stored in the `dist/` directory. Use the `-prod` flag for a production build.
 
-## Running unit tests
 
-Run `ng test` to execute the unit tests via [Karma](https://karma-runner.github.io).
+## Shop / Merchant admin
 
-## Running end-to-end tests
+- In `./backend` folder and in a Python 3 virtualenv install requirements: `pip install -r requirements.txt`
+- In `./backend/paymentchannels` folder create a `local_settings.py` file to overwrite at least:
+  - ETH_MERCHANT_ADDRESS
+  - ETH_MERCHANT_PRIVATE_KEY
+  - ETH_CONTRACT_ADDRESS
+  - ETH_CURRENT_NETWORK (depending on which network you are currently working on)
 
-Run `ng e2e` to execute the end-to-end tests via [Protractor](http://www.protractortest.org/).
-
-## Further help
-
-To get more help on the Angular CLI use `ng help` or go check out the [Angular CLI README](https://github.com/angular/angular-cli/blob/master/README.md).
+- Create the tables: `./manage.py migrate`
+- Start Django dev server: `./manage.py runserver`
