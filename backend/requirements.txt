@@ -5,7 +5,7 @@ cffi==1.11.5
 chardet==3.0.4
 coincurve==9.0.0
 cytoolz==0.9.0.1
-Django==2.1.6
+Django==2.1.9
 django-web3-auth==0.1.0
 eth-abi==1.2.0
 eth-account==0.3.0
