@@ -28,7 +28,7 @@
     "@types/cordova-plugin-qrscanner": "^1.0.31",
     "angularx-qrcode": "^1.2.4",
     "cordova": "^8.1.2",
-    "cordova-browser": "5.0.4",
+    "cordova-browser": "6.0.0",
     "cordova-ios": "4.5.5",
     "cordova-plugin-add-swift-support": "^1.7.2",
     "cordova-plugin-device": "2.0.2",
